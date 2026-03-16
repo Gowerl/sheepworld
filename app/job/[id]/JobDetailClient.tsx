@@ -43,7 +43,7 @@ export default function JobDetailClient() {
         setJob(data);
         if (isTriggering && data.flowStatus?.[isTriggering] === "done") {
           setIsTriggering(null);
-          setLastAction("Success!");
+          setLastAction("Success");
           setTimeout(() => setLastAction(null), 3000);
         }
       }
@@ -78,13 +78,13 @@ export default function JobDetailClient() {
       });
 
       if (response.ok) {
-        setLastAction("Request sent to n8n...");
+        setLastAction("Sent to n8n");
       } else {
         throw new Error("n8n error");
       }
     } catch (e) { 
       console.error(e); 
-      setLastAction("Error starting flow");
+      setLastAction("Flow error");
       setIsTriggering(null);
     }
   };
@@ -92,7 +92,7 @@ export default function JobDetailClient() {
   if (!job) return (
     <div className="p-20 text-center bg-black min-h-screen text-white flex flex-col items-center justify-center">
       <Loader2 className="animate-spin text-blue-600 mb-4" />
-      <p className="text-xs uppercase tracking-widest opacity-50">Syncing Fleet...</p>
+      <p className="text-xs uppercase tracking-widest opacity-50">Syncing Node...</p>
     </div>
   );
 
@@ -105,7 +105,7 @@ export default function JobDetailClient() {
             <Loader2 className="animate-spin w-16 h-16 text-blue-500" />
             <div className="space-y-2">
               <h2 className="text-xl font-black uppercase tracking-tighter">System Locked</h2>
-              <p className="text-xs text-zinc-500 font-mono">Processing: {isTriggering}</p>
+              <p className="text-xs text-zinc-500 font-mono italic">Working on: {isTriggering}</p>
             </div>
           </div>
         </div>
@@ -136,20 +136,39 @@ export default function JobDetailClient() {
           <section className="space-y-4">
             <h3 className="text-[10px] uppercase tracking-[0.4em] font-black text-zinc-700 px-1">Command Protocol</h3>
             <div className="space-y-2">
-              {steps.map((s) => {
+              {steps.map((s, index) => {
                 const stat = job?.flowStatus?.[s.key] || "waiting";
                 const isDone = stat === "done";
                 const isProcessing = stat === "processing";
+
+                // Step-Locking Logic (TypeScript Safe)
+                const isFirstStep = index === 0;
+                let isLocked = false;
+                if (!isFirstStep) {
+                  const prevStepKey = steps[index - 1].key;
+                  isLocked = job?.flowStatus?.[prevStepKey] !== "done";
+                }
 
                 return (
                   <Button 
                     key={s.key} 
                     onClick={() => triggerFlow(s.key, s.webhook)} 
-                    disabled={isProcessing || isTriggering !== null}
-                    className={"w-full h-auto p-4 justify-between border-none rounded-2xl transition-all duration-500 " + (isDone ? "bg-green-500/10 text-green-500 border border-green-500/20" : isProcessing ? "bg-blue-900/40 text-blue-400 animate-pulse" : "bg-zinc-900 text-zinc-400 hover:bg-blue-600 hover:text-white")}
+                    disabled={isProcessing || isTriggering !== null || isLocked}
+                    className={"w-full h-auto p-4 justify-between border-none rounded-2xl transition-all duration-500 " + (
+                      isDone ? "bg-green-500/10 text-green-500 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.1)]" : 
+                      isProcessing ? "bg-blue-900/40 text-blue-400 animate-pulse" : 
+                      isLocked ? "bg-zinc-900/30 text-zinc-700 cursor-not-allowed" :
+                      "bg-zinc-900 text-zinc-400 hover:bg-blue-600 hover:text-white"
+                    )}
                   >
-                    <span className="text-[10px] font-black uppercase tracking-widest">{s.label}</span>
-                    {isDone ? <CheckCircle2 size={16} /> : isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <Play size={14} />}
+                    <div className="flex flex-col items-start text-left">
+                      <span className="text-[10px] font-black uppercase tracking-widest">{s.label}</span>
+                      {isLocked && <span className="text-[7px] uppercase opacity-40 font-bold tracking-tighter">Wait for Previous</span>}
+                    </div>
+                    {isDone ? <CheckCircle2 size={16} /> : 
+                     isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : 
+                     isLocked ? <Lock size={12} className="opacity-20" /> :
+                     <Play size={14} />}
                   </Button>
                 );
               })}
@@ -168,7 +187,7 @@ export default function JobDetailClient() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t border-zinc-900">
-             <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden">
+             <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden shadow-2xl">
               <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex items-center gap-3">
                 <Mic size={14} className="text-pink-500"/>
                 <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Aural Processing</span>
@@ -176,14 +195,14 @@ export default function JobDetailClient() {
               <CardContent className="p-8">
                 {job?.audio_file_http ? (
                   <audio src={job.audio_file_http} controls className="w-full h-10 accent-pink-500" />
-                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic">Awaiting Sonic DNA...</div>}
+                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic">Awaiting Audio...</div>}
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden lg:col-span-2">
+            <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden lg:col-span-2 shadow-2xl">
               <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex items-center gap-3">
                 <Code2 size={14} className="text-orange-500"/>
-                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata Pointers</span>
+                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata</span>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="grid grid-cols-3 divide-x divide-zinc-900 border-b border-zinc-900 bg-black/40">
@@ -211,7 +230,7 @@ export default function JobDetailClient() {
 
 function AssetCard({ title, src, type, icon: Icon, colorClass }: any) {
   return (
-    <Card className="relative group border-zinc-800 bg-zinc-900/40 backdrop-blur-md overflow-hidden transition-all duration-500 hover:border-zinc-400">
+    <Card className="relative group border-zinc-800 bg-zinc-900/40 backdrop-blur-md overflow-hidden transition-all duration-500 hover:border-zinc-400 shadow-2xl">
       <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 bg-black/20">
         <CardTitle className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-500 flex items-center gap-2">
           {Icon && <Icon size={14} className="opacity-50" />} {title}
