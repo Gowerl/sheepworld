@@ -1,5 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
+// WICHTIG: Füge diese Funktion hinzu, damit der Export-Fehler verschwindet
+export function generateStaticParams() {
+  return [];
+}
+
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/src/lib/firebase";
