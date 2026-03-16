@@ -41,6 +41,7 @@ export default function JobDetailClient() {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
         setJob(data);
+        // Sobald Firestore "done" meldet, geben wir das UI wieder frei
         if (isTriggering && data.flowStatus?.[isTriggering] === "done") {
           setIsTriggering(null);
           setLastAction("Success");
@@ -62,15 +63,13 @@ export default function JobDetailClient() {
 
   const triggerFlow = async (flowKey: string, webhookUrl: string) => {
     if (isTriggering) return;
+    
+    // LOKALER LOCK: Verhindert Mehrfachklicks und zeigt Loader
     setIsTriggering(flowKey);
-    setLastAction("Starting " + flowKey);
+    setLastAction("Connecting to n8n...");
 
     try {
-      const jobRef = doc(db, "jobs", id);
-      await updateDoc(jobRef, {
-        ["flowStatus." + flowKey]: "processing"
-      });
-
+      // WICHTIG: Kein updateDoc hier! Wir warten rein auf die Antwort von n8n via Firestore
       const response = await fetch(webhookUrl, { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
@@ -78,13 +77,13 @@ export default function JobDetailClient() {
       });
 
       if (response.ok) {
-        setLastAction("Sent to n8n");
+        setLastAction("Payload delivered. Processing...");
       } else {
-        throw new Error("n8n error");
+        throw new Error("n8n unavailable");
       }
     } catch (e) { 
       console.error(e); 
-      setLastAction("Flow error");
+      setLastAction("Link failed");
       setIsTriggering(null);
     }
   };
@@ -92,7 +91,7 @@ export default function JobDetailClient() {
   if (!job) return (
     <div className="p-20 text-center bg-black min-h-screen text-white flex flex-col items-center justify-center">
       <Loader2 className="animate-spin text-blue-600 mb-4" />
-      <p className="text-xs uppercase tracking-widest opacity-50">Syncing Node...</p>
+      <p className="text-xs uppercase tracking-widest opacity-50 italic">Establishing Neural Link...</p>
     </div>
   );
 
@@ -104,8 +103,8 @@ export default function JobDetailClient() {
           <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 text-center">
             <Loader2 className="animate-spin w-16 h-16 text-blue-500" />
             <div className="space-y-2">
-              <h2 className="text-xl font-black uppercase tracking-tighter">System Locked</h2>
-              <p className="text-xs text-zinc-500 font-mono italic">Working on: {isTriggering}</p>
+              <h2 className="text-xl font-black uppercase tracking-tighter">Command Executing</h2>
+              <p className="text-xs text-zinc-500 font-mono italic">Sequence: {isTriggering}</p>
             </div>
           </div>
         </div>
@@ -113,7 +112,7 @@ export default function JobDetailClient() {
 
       {zoomImage && (
         <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-8 cursor-zoom-out" onClick={() => setZoomImage(null)}>
-          <img src={zoomImage.src} className="max-w-full max-h-[90vh] rounded-xl" alt="Zoom" />
+          <img src={zoomImage.src} className="max-w-full max-h-[90vh] rounded-xl shadow-2xl" alt="Zoom" />
         </div>
       )}
 
@@ -123,9 +122,9 @@ export default function JobDetailClient() {
             <ArrowLeft size={14} /> [ DISCONNECT_FROM_FLEET ]
           </Button>
           <div className="space-y-1">
-            <Badge className="bg-blue-500/5 text-blue-500 border-blue-500/20 font-mono px-3 mb-2">NODE: {id}</Badge>
+            <Badge className="bg-blue-500/5 text-blue-500 border-blue-500/20 font-mono px-3 mb-2 uppercase">Core Node: {id}</Badge>
             <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-b from-white to-zinc-600 bg-clip-text text-transparent italic leading-tight">
-              {job?.product_shop_title || "SEQUENCE"}
+              {job?.product_shop_title || "PRODUCTION_LOG"}
             </h1>
           </div>
         </div>
@@ -139,9 +138,11 @@ export default function JobDetailClient() {
               {steps.map((s, index) => {
                 const stat = job?.flowStatus?.[s.key] || "waiting";
                 const isDone = stat === "done";
-                const isProcessing = stat === "processing";
+                
+                // Wir behandeln "isTriggering" lokal als Processing-State
+                const isProcessing = isTriggering === s.key;
 
-                // Step-Locking Logic (TypeScript Safe)
+                // Step-Locking Logic
                 const isFirstStep = index === 0;
                 let isLocked = false;
                 if (!isFirstStep) {
@@ -157,13 +158,13 @@ export default function JobDetailClient() {
                     className={"w-full h-auto p-4 justify-between border-none rounded-2xl transition-all duration-500 " + (
                       isDone ? "bg-green-500/10 text-green-500 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.1)]" : 
                       isProcessing ? "bg-blue-900/40 text-blue-400 animate-pulse" : 
-                      isLocked ? "bg-zinc-900/30 text-zinc-700 cursor-not-allowed" :
+                      isLocked ? "bg-zinc-900/30 text-zinc-700 cursor-not-allowed opacity-40" :
                       "bg-zinc-900 text-zinc-400 hover:bg-blue-600 hover:text-white"
                     )}
                   >
                     <div className="flex flex-col items-start text-left">
                       <span className="text-[10px] font-black uppercase tracking-widest">{s.label}</span>
-                      {isLocked && <span className="text-[7px] uppercase opacity-40 font-bold tracking-tighter">Wait for Previous</span>}
+                      {isLocked && <span className="text-[7px] uppercase opacity-40 font-bold tracking-tighter">Locked Sequence</span>}
                     </div>
                     {isDone ? <CheckCircle2 size={16} /> : 
                      isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : 
@@ -195,28 +196,28 @@ export default function JobDetailClient() {
               <CardContent className="p-8">
                 {job?.audio_file_http ? (
                   <audio src={job.audio_file_http} controls className="w-full h-10 accent-pink-500" />
-                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic">Awaiting Audio...</div>}
+                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic opacity-20">Awaiting Signal...</div>}
               </CardContent>
             </Card>
 
             <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden lg:col-span-2 shadow-2xl">
               <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex items-center gap-3">
                 <Code2 size={14} className="text-orange-500"/>
-                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata</span>
+                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata Stream</span>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="grid grid-cols-3 divide-x divide-zinc-900 border-b border-zinc-900 bg-black/40">
                   <div className="p-6">
-                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><MapPin size={12}/> World</p>
-                    <p className="text-xs font-bold text-zinc-400">{job?.environment || "UNDEFINED"}</p>
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><MapPin size={12}/> Env</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.environment || "NULL"}</p>
                   </div>
                   <div className="p-6">
                     <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><Sparkles size={12}/> Mood</p>
-                    <p className="text-xs font-bold text-zinc-400">{job?.mood || "UNDEFINED"}</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.mood || "NULL"}</p>
                   </div>
                   <div className="p-6">
-                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><Ruler size={12}/> Units</p>
-                    <p className="text-xs font-bold text-zinc-400">{job?.product_width_cm}x{job?.product_height_cm}</p>
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><Ruler size={12}/> Scale</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.product_width_cm}x{job?.product_height_cm} CM</p>
                   </div>
                 </div>
               </CardContent>
@@ -245,9 +246,9 @@ function AssetCard({ title, src, type, icon: Icon, colorClass }: any) {
             <img src={src} className="w-full h-full object-cover" alt={title} />
           )
         ) : (
-          <div className="flex flex-col items-center gap-2 opacity-20">
-            <Activity className="w-6 h-6" />
-            <span className="text-[8px] font-black uppercase tracking-widest italic">Awaiting Stream</span>
+          <div className="flex flex-col items-center gap-2 opacity-10">
+            <Activity className="w-6 h-6 animate-pulse" />
+            <span className="text-[8px] font-black uppercase tracking-widest italic">Awaiting Asset Data</span>
           </div>
         )}
       </CardContent>
