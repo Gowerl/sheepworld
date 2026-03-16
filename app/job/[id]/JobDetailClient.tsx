@@ -69,12 +69,7 @@ export default function JobDetailClient() {
   };
 
   const AssetCard = ({ title, src, type, jobKey, icon: Icon, colorClass, glowColor }: any) => (
-    <Card className={`relative group border-zinc-800 bg-zinc-900/40 backdrop-blur-md overflow-hidden transition-all duration-500 hover:border-zinc-400 shadow-2xl ${src ? "hover:shadow-lg" : ""}`}>
-      {job?.flowStatus?.[jobKey] === "processing" && (
-        <div className="absolute inset-0 z-10 pointer-events-none">
-          <div className={`w-full h-[2px] ${colorClass} animate-scan opacity-70`} />
-        </div>
-      )}
+    <Card className={`relative group border-zinc-800 bg-zinc-900/40 backdrop-blur-md overflow-hidden transition-all duration-500 hover:border-zinc-400 shadow-2xl`}>
       <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 bg-black/20">
         <CardTitle className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-500 flex items-center gap-2">
           {Icon && <Icon size={14} className="opacity-50" />} {title}
@@ -95,7 +90,7 @@ export default function JobDetailClient() {
           )
         ) : (
           <div className="flex flex-col items-center gap-2 opacity-20">
-            {job?.flowStatus?.[jobKey] === "processing" ? <Loader2 className="animate-spin text-blue-500 w-6 h-6" /> : <Activity className="w-6 h-6" />}
+            <Activity className="w-6 h-6" />
             <span className="text-[8px] font-black uppercase tracking-widest italic">Awaiting Stream</span>
           </div>
         )}
@@ -111,14 +106,9 @@ export default function JobDetailClient() {
   );
 
   return (
-    <main className="p-8 max-w-[1800px] mx-auto space-y-10 min-h-screen bg-black text-white selection:bg-blue-500/30">
-      <style jsx global>{`
-        @keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(400%); } }
-        .animate-scan { animation: scan 3s linear infinite; }
-      `}</style>
-
+    <main className="p-8 max-w-[1800px] mx-auto space-y-10 min-h-screen bg-black text-white">
       {zoomImage && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8 cursor-zoom-out" onClick={() => setZoomImage(null)}>
+        <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-8" onClick={() => setZoomImage(null)}>
           <img src={zoomImage.src} className="max-w-full max-h-[90vh] rounded-xl shadow-2xl border border-white/5" alt="Zoom" />
         </div>
       )}
@@ -131,9 +121,6 @@ export default function JobDetailClient() {
           <div className="space-y-1">
             <div className="flex items-center gap-4 mb-2">
               <Badge className="bg-blue-500/5 text-blue-500 border-blue-500/20 font-mono px-3 uppercase tracking-tighter">NODE_ID: {id}</Badge>
-              <div className="flex items-center gap-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Stream_Active
-              </div>
             </div>
             <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-b from-white to-zinc-600 bg-clip-text text-transparent italic">
               {job?.product_shop_title || "ALPHA_SEQUENCE"}
@@ -174,6 +161,52 @@ export default function JobDetailClient() {
             <AssetCard title="04_END_FRAME" src={job?.scene_image_endframe_http} jobKey="flow3_endframe" icon={ImageIcon} colorClass="bg-indigo-500" />
             <AssetCard title="05_SILENT_RENDER" src={job?.video_url_without_sound_http} jobKey="flow4_video_silent" type="video" icon={Film} colorClass="bg-purple-500" />
             <AssetCard title="06_FINAL_MASTER" src={job?.video_url_with_sound_http} jobKey="flow6_muxing" type="video" icon={Play} colorClass="bg-green-500" />
+          </div>
+
+          {/* HIER SIND DIE FEHLENDEN METADATEN WIEDER */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t border-zinc-900">
+             <Card className="bg-zinc-950 border border-zinc-900 rounded-3xl overflow-hidden shadow-2xl">
+              <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Mic size={14} className="text-pink-500"/>
+                  <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Aural_Processing</span>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8">
+                {job?.audio_file_http ? (
+                  <audio src={job.audio_file_http} controls className="w-full h-10 accent-pink-500" />
+                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic">Awaiting Sonic DNA...</div>}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-950 border border-zinc-900 rounded-3xl overflow-hidden lg:col-span-2 shadow-2xl">
+              <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex items-center gap-3">
+                <Code2 size={14} className="text-orange-500"/>
+                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata_Pointers</span>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="grid grid-cols-3 divide-x divide-zinc-900 border-b border-zinc-900 bg-black/40">
+                  <div className="p-6">
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-2 flex items-center gap-2"><MapPin size={12}/> World</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.environment || "UNDEFINED"}</p>
+                  </div>
+                  <div className="p-6">
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-2 flex items-center gap-2"><Sparkles size={12}/> Mood</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.mood || "UNDEFINED"}</p>
+                  </div>
+                  <div className="p-6">
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-2 flex items-center gap-2"><Ruler size={12}/> Units</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.product_width_cm}x{job?.product_height_cm}</p>
+                  </div>
+                </div>
+                <div className="p-8 space-y-4">
+                  <p className="text-[9px] text-zinc-700 font-black uppercase tracking-widest flex items-center gap-2"><FileText size={12}/> Injected_Prompt_DNA</p>
+                  <div className="text-[11px] font-mono text-zinc-500 leading-relaxed bg-black/60 p-5 rounded-2xl border border-zinc-900 italic max-h-32 overflow-y-auto">
+                    {job?.scene_prompt_final || "// NO_SEQUENCE_DATA_FOUND"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
