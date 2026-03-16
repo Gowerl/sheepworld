@@ -11,7 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build
+      
+      - name: Patch dynamicParams and Build
+        run: |
+          # Ändert true zu false in der Datei, damit der statische Export auf GitHub klappt
+          sed -i 's/dynamicParams = true/dynamicParams = false/g' "app/job/[id]/page.tsx"
+          
+          # Abhängigkeiten installieren und Build starten
+          npm ci && npm run build
+          
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
