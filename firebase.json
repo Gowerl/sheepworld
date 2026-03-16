@@ -1,10 +1,4 @@
 {
-  "firestore": {
-    "database": "(default)",
-    "location": "europe-west4",
-    "rules": "firestore rules",
-    "indexes": "firestore.indexes.json"
-  },
   "hosting": {
     "public": "out",
     "ignore": [
@@ -13,6 +7,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/job/**",
+        "destination": "/job/index/index.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
