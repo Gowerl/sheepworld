@@ -1,6 +1,8 @@
 {
   "hosting": {
     "public": "out",
+    "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -9,7 +11,7 @@
     "rewrites": [
       {
         "source": "/job/**",
-        "destination": "/job/index.html" 
+        "destination": "/job/index.html"
       },
       {
         "source": "**",
