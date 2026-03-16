@@ -11,7 +11,7 @@
     "rewrites": [
       {
         "source": "/job/**",
-        "destination": "/job/index.html"
+        "destination": "/job/index/index.html"
       },
       {
         "source": "**",
