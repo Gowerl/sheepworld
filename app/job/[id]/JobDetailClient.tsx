@@ -44,13 +44,49 @@ export default function JobDetailClient() {
   }, [id]);
 
   const steps = [
-    { key: "flow1_scene", label: "1. Scene", webhook: "https://myc3.app.n8n.cloud/webhook-test/generate-scene", color: "bg-blue-500", glow: "#3b82f6" },
-    { key: "flow2_startframe", label: "2. Startframe", webhook: "https://myc3.app.n8n.cloud/webhook-test/generate-startframe", color: "bg-cyan-500", glow: "#06b6d4" },
-    { key: "flow3_endframe", label: "3. Endframe", webhook: "https://myc3.app.n8n.cloud/webhook-test/generate-endframe", color: "bg-indigo-500", glow: "#6366f1" },
-    { key: "flow4_video_silent", label: "4. Video", webhook: "https://myc3.app.n8n.cloud/webhook-test/generate-video-silent", color: "bg-purple-500", glow: "#a855f7" },
-    { key: "flow5_voiceover", label: "5. Voiceover", webhook: "https://myc3.app.n8n.cloud/webhook-test/generate-voiceover", color: "bg-pink-500", glow: "#ec4899" },
-    { key: "flow6_muxing", label: "6. Final Video", webhook: "https://myc3.app.n8n.cloud/webhook-test/mux-video", color: "bg-green-500", glow: "#22c55e" }
-  ];
+      { 
+        key: "flow1_scene", 
+        label: "1. Scene", 
+        webhook: "https://myc3.app.n8n.cloud/webhook/generate-scene", 
+        color: "bg-blue-500", 
+        glow: "#3b82f6" 
+      },
+      { 
+        key: "flow2_startframe", 
+        label: "2. Startframe", 
+        webhook: "https://myc3.app.n8n.cloud/webhook/generate-startframe", 
+        color: "bg-cyan-500", 
+        glow: "#06b6d4" 
+      },
+      { 
+        key: "flow3_endframe", 
+        label: "3. Endframe", 
+        webhook: "https://myc3.app.n8n.cloud/webhook/generate-endframe", 
+        color: "bg-indigo-500", 
+        glow: "#6366f1" 
+      },
+      { 
+        key: "flow4_video_silent", 
+        label: "4. Video", 
+        webhook: "https://myc3.app.n8n.cloud/webhook/generate-video-silent", 
+        color: "bg-purple-500", 
+        glow: "#a855f7" 
+      },
+      { 
+        key: "flow5_voiceover", 
+        label: "5. Voiceover", 
+        webhook: "https://myc3.app.n8n.cloud/webhook/generate-voiceover", 
+        color: "bg-pink-500", 
+        glow: "#ec4899" 
+      },
+      { 
+        key: "flow6_muxing", 
+        label: "6. Final Video", 
+        webhook: "https://myc3.app.n8n.cloud/webhook/mux-video", 
+        color: "bg-green-500", 
+        glow: "#22c55e" 
+      }
+    ];
 
   const triggerFlow = async (flowKey: string, webhookUrl: string) => {
     setIsTriggering(flowKey);
