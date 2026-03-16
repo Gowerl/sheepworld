@@ -1,15 +1,7 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
-
-// WICHTIG: Füge diese Funktion hinzu, damit der Export-Fehler verschwindet
-export function generateStaticParams() {
-  return [];
-}
-
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { db } from "@/src/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +10,16 @@ import { Button } from "@/components/ui/button";
 import { 
   Loader2, Sparkles, ZoomIn, Play, Image as ImageIcon,
   Film, Mic, RefreshCcw, Download, Box, MapPin, Ruler,
-  ArrowLeft, Cpu, Link as LinkIcon,
-  Code2, FileText, Activity
+  ArrowLeft, Activity, Code2, FileText
 } from "lucide-react";
+
+// Diese Exporte müssen vorhanden sein für den statischen Build
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
+export function generateStaticParams() {
+  return [];
+}
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -42,8 +41,8 @@ export default function JobDetail() {
   useEffect(() => {
     setIsClient(true);
     if (!id) return;
-    const unsubscribe = onSnapshot(doc(db, "jobs", id as string), (doc) => {
-      if (doc.exists()) setJob(doc.data());
+    const unsubscribe = onSnapshot(doc(db, "jobs", id as string), (docSnapshot) => {
+      if (docSnapshot.exists()) setJob(docSnapshot.data());
     });
     return () => unsubscribe();
   }, [id]);
