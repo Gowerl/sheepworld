@@ -41,7 +41,8 @@ export default function JobDetailClient() {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
         setJob(data);
-        // Sobald Firestore "done" meldet, geben wir das UI wieder frei
+        
+        // UI-Lock aufheben, wenn Firestore "done" für den aktiven Prozess meldet
         if (isTriggering && data.flowStatus?.[isTriggering] === "done") {
           setIsTriggering(null);
           setLastAction("Success");
@@ -64,26 +65,25 @@ export default function JobDetailClient() {
   const triggerFlow = async (flowKey: string, webhookUrl: string) => {
     if (isTriggering) return;
     
-    // LOKALER LOCK: Verhindert Mehrfachklicks und zeigt Loader
+    // Lokaler Lock für sofortiges UI-Feedback
     setIsTriggering(flowKey);
-    setLastAction("Connecting to n8n...");
+    setLastAction("Triggering " + flowKey + "...");
 
     try {
-      // WICHTIG: Kein updateDoc hier! Wir warten rein auf die Antwort von n8n via Firestore
+      // Kein lokales updateDoc (Datenbank), um Race Conditions zu vermeiden.
+      // n8n übernimmt die Status-Kontrolle in der DB.
       const response = await fetch(webhookUrl, { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ jobId: id }) 
       });
 
-      if (response.ok) {
-        setLastAction("Payload delivered. Processing...");
-      } else {
-        throw new Error("n8n unavailable");
-      }
+      if (!response.ok) throw new Error("n8n error");
+      
+      setLastAction("Signal sent...");
     } catch (e) { 
       console.error(e); 
-      setLastAction("Link failed");
+      setLastAction("Error");
       setIsTriggering(null);
     }
   };
@@ -91,7 +91,7 @@ export default function JobDetailClient() {
   if (!job) return (
     <div className="p-20 text-center bg-black min-h-screen text-white flex flex-col items-center justify-center">
       <Loader2 className="animate-spin text-blue-600 mb-4" />
-      <p className="text-xs uppercase tracking-widest opacity-50 italic">Establishing Neural Link...</p>
+      <p className="text-xs uppercase tracking-widest opacity-50 italic">Establishing Link...</p>
     </div>
   );
 
@@ -103,8 +103,8 @@ export default function JobDetailClient() {
           <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 text-center">
             <Loader2 className="animate-spin w-16 h-16 text-blue-500" />
             <div className="space-y-2">
-              <h2 className="text-xl font-black uppercase tracking-tighter">Command Executing</h2>
-              <p className="text-xs text-zinc-500 font-mono italic">Sequence: {isTriggering}</p>
+              <h2 className="text-xl font-black uppercase tracking-tighter">Command Processing</h2>
+              <p className="text-xs text-zinc-500 font-mono italic">Flow: {isTriggering}</p>
             </div>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function JobDetailClient() {
             <ArrowLeft size={14} /> [ DISCONNECT_FROM_FLEET ]
           </Button>
           <div className="space-y-1">
-            <Badge className="bg-blue-500/5 text-blue-500 border-blue-500/20 font-mono px-3 mb-2 uppercase">Core Node: {id}</Badge>
+            <Badge className="bg-blue-500/5 text-blue-500 border-blue-500/20 font-mono px-3 mb-2 uppercase tracking-widest text-[9px]">Node ID: {id}</Badge>
             <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-b from-white to-zinc-600 bg-clip-text text-transparent italic leading-tight">
               {job?.product_shop_title || "PRODUCTION_LOG"}
             </h1>
@@ -139,10 +139,10 @@ export default function JobDetailClient() {
                 const stat = job?.flowStatus?.[s.key] || "waiting";
                 const isDone = stat === "done";
                 
-                // Wir behandeln "isTriggering" lokal als Processing-State
-                const isProcessing = isTriggering === s.key;
+                // Processing-Logik: Datenbank-Status ODER lokaler Trigger-State
+                const isProcessing = stat === "processing" || isTriggering === s.key;
 
-                // Step-Locking Logic
+                // Step-Locking (TypeScript-safe)
                 const isFirstStep = index === 0;
                 let isLocked = false;
                 if (!isFirstStep) {
@@ -157,17 +157,18 @@ export default function JobDetailClient() {
                     disabled={isProcessing || isTriggering !== null || isLocked}
                     className={"w-full h-auto p-4 justify-between border-none rounded-2xl transition-all duration-500 " + (
                       isDone ? "bg-green-500/10 text-green-500 border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.1)]" : 
-                      isProcessing ? "bg-blue-900/40 text-blue-400 animate-pulse" : 
+                      isProcessing ? "bg-blue-900/40 text-blue-400 animate-pulse border border-blue-500/30" : 
                       isLocked ? "bg-zinc-900/30 text-zinc-700 cursor-not-allowed opacity-40" :
-                      "bg-zinc-900 text-zinc-400 hover:bg-blue-600 hover:text-white"
+                      "bg-zinc-900 text-zinc-400 hover:bg-blue-600 hover:text-white shadow-sm"
                     )}
                   >
                     <div className="flex flex-col items-start text-left">
                       <span className="text-[10px] font-black uppercase tracking-widest">{s.label}</span>
-                      {isLocked && <span className="text-[7px] uppercase opacity-40 font-bold tracking-tighter">Locked Sequence</span>}
+                      {isLocked && <span className="text-[7px] uppercase opacity-40 font-bold tracking-tighter">Await Previous</span>}
+                      {isProcessing && <span className="text-[7px] uppercase text-blue-400 font-bold tracking-tighter">In Progress</span>}
                     </div>
                     {isDone ? <CheckCircle2 size={16} /> : 
-                     isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : 
+                     isProcessing ? <Loader2 className="animate-spin w-4 h-4 text-blue-400" /> : 
                      isLocked ? <Lock size={12} className="opacity-20" /> :
                      <Play size={14} />}
                   </Button>
@@ -191,33 +192,33 @@ export default function JobDetailClient() {
              <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden shadow-2xl">
               <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex items-center gap-3">
                 <Mic size={14} className="text-pink-500"/>
-                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Aural Processing</span>
+                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Aural Data</span>
               </CardHeader>
               <CardContent className="p-8">
                 {job?.audio_file_http ? (
                   <audio src={job.audio_file_http} controls className="w-full h-10 accent-pink-500" />
-                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic opacity-20">Awaiting Signal...</div>}
+                ) : <div className="text-center text-[9px] text-zinc-800 uppercase font-bold tracking-widest italic opacity-20">Awaiting Audio Stream...</div>}
               </CardContent>
             </Card>
 
             <Card className="bg-zinc-950 border-zinc-900 rounded-3xl overflow-hidden lg:col-span-2 shadow-2xl">
               <CardHeader className="py-4 px-6 bg-zinc-900/30 border-b border-zinc-900 flex items-center gap-3">
                 <Code2 size={14} className="text-orange-500"/>
-                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata Stream</span>
+                <span className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Metadata Context</span>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="grid grid-cols-3 divide-x divide-zinc-900 border-b border-zinc-900 bg-black/40">
                   <div className="p-6">
-                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><MapPin size={12}/> Env</p>
-                    <p className="text-xs font-bold text-zinc-400">{job?.environment || "NULL"}</p>
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><MapPin size={12}/> Environment</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.environment || "N/A"}</p>
                   </div>
                   <div className="p-6">
                     <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><Sparkles size={12}/> Mood</p>
-                    <p className="text-xs font-bold text-zinc-400">{job?.mood || "NULL"}</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.mood || "N/A"}</p>
                   </div>
                   <div className="p-6">
-                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><Ruler size={12}/> Scale</p>
-                    <p className="text-xs font-bold text-zinc-400">{job?.product_width_cm}x{job?.product_height_cm} CM</p>
+                    <p className="text-[9px] text-zinc-700 font-black uppercase mb-1 flex items-center gap-2"><Ruler size={12}/> Proportions</p>
+                    <p className="text-xs font-bold text-zinc-400">{job?.product_width_cm}x{job?.product_height_cm} cm</p>
                   </div>
                 </div>
               </CardContent>
@@ -232,7 +233,7 @@ export default function JobDetailClient() {
 function AssetCard({ title, src, type, icon: Icon, colorClass }: any) {
   return (
     <Card className="relative group border-zinc-800 bg-zinc-900/40 backdrop-blur-md overflow-hidden transition-all duration-500 hover:border-zinc-400 shadow-2xl">
-      <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 bg-black/20">
+      <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 bg-black/20 border-b border-white/5">
         <CardTitle className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-500 flex items-center gap-2">
           {Icon && <Icon size={14} className="opacity-50" />} {title}
         </CardTitle>
@@ -248,7 +249,7 @@ function AssetCard({ title, src, type, icon: Icon, colorClass }: any) {
         ) : (
           <div className="flex flex-col items-center gap-2 opacity-10">
             <Activity className="w-6 h-6 animate-pulse" />
-            <span className="text-[8px] font-black uppercase tracking-widest italic">Awaiting Asset Data</span>
+            <span className="text-[8px] font-black uppercase tracking-widest italic">Awaiting Asset Generation</span>
           </div>
         )}
       </CardContent>
