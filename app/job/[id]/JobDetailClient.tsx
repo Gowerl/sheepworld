@@ -17,12 +17,10 @@ export default function JobDetailClient() {
   const params = useParams();
   const router = useRouter();
   const [job, setJob] = useState<any>(null);
-  const [zoomImage, setZoomImage] = useState<{src: string, title: string} | null>(null);
   const [isTriggering, setIsTriggering] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
 
-  // Hilfsfunktion für Cache-Busting (hängt Zeitstempel an URL an)
   const getCachedUrl = (url: string) => {
     if (!url) return "";
     const separator = url.includes('?') ? '&' : '?';
@@ -99,28 +97,25 @@ export default function JobDetailClient() {
 
       await updateDoc(doc(db, "jobs", id), updates);
 
-      // PROXY TRIGGER: Verhindert CORS-Fehler durch Umweg über Next.js API
-      const response = await fetch("/api/trigger-n8n", { 
+      // DIREKTER TRIGGER (Bypass Proxy für Static Export)
+      const response = await fetch(webhookUrl, { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ 
-          jobId: id,
-          webhookUrl: webhookUrl 
-        }) 
+        body: JSON.stringify({ jobId: id }) 
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        console.error("Pipeline Sync Error:", result);
-        throw new Error(result.error || "Remote execution failed");
+      if (!response.ok) {
+        // Falls CORS zuschlägt, wird dieser Block eventuell übersprungen, 
+        // aber wir loggen es für den Fall von 4xx/5xx Fehlern
+        const errText = await response.text();
+        throw new Error(`n8n error: ${response.status} - ${errText}`);
       }
 
       setLastAction("Remote Trigger Active...");
     } catch (e) { 
-      console.error(e); 
+      console.error("Trigger Flow Error:", e); 
       setIsTriggering(null);
-      setLastAction("Error: Check Logs");
+      setLastAction("Sync Error (Check CORS)");
       setTimeout(() => setLastAction(null), 5000);
     }
   };

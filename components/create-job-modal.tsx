@@ -97,28 +97,24 @@ export function CreateJobModal() {
           flow3_endframe: "waiting",
           flow4_video_silent: "waiting",
           flow5_voiceover: "waiting",
-          flow6_muxing: "waiting",
-          flow7_export: "waiting"
+          flow6_muxing: "waiting"
         }
       };
 
       await setDoc(doc(db, "jobs", customId), jobData);
 
-      // PROXY TRIGGER: Nutzt die interne API statt direkten n8n-Aufruf
-      // Wir nutzen hier /webhook/ für Production oder /webhook-test/ falls du noch entwickelst
-      await fetch("/api/trigger-n8n", {
+      // DIREKTER TRIGGER: Da Static Export genutzt wird, rufen wir n8n direkt auf.
+      // CORS muss in n8n konfiguriert sein.
+      await fetch("https://myc3.app.n8n.cloud/webhook/generate-scene", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          jobId: customId,
-          webhookUrl: "https://myc3.app.n8n.cloud/webhook-test/generate-scene" 
-        }),
+        body: JSON.stringify({ jobId: customId }),
       });
 
       setOpen(false);
     } catch (error) {
       console.error("Fehler beim Erstellen des Jobs:", error);
-      alert("Fehler beim Webhook-Trigger. Bitte prüfe die Konsole.");
+      alert("Fehler beim Starten der Pipeline. Details in der Konsole.");
     } finally {
       setLoading(false);
       setUploadProgress(0);
