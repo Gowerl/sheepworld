@@ -57,38 +57,31 @@ export function CreateJobModal() {
         });
       }
 
-      // Vollständiges Mapping basierend auf der neuen 7-Flow-Struktur
       const jobData = {
         job_id: customId,
         status: "created",
         createdAt: serverTimestamp(),
         
-        // Shop & Produkt Info
         product_shop_title: formData.get("product_shop_title"),
         product_shop_description: formData.get("product_shop_description"),
         product_shop_url: formData.get("product_shop_url"),
         brand: formData.get("brand") || "Sheepworld",
         
-        // Physische Maße
         product_width_cm: formData.get("width"),
         product_height_cm: formData.get("height"),
         mascot_size_in_cm: "170",
         
-        // Media Assets
         product_image: productGCS,
         product_image_http: productHTTP,
         
-        // KI & Creative Settings
         environment: formData.get("environment"),
         mood: formData.get("mood"),
         voiceover_style: formData.get("mood"), 
         character: "sheep mascot",
         
-        // Technische Settings
         resolution: formData.get("resolution"),
         aspect_ratio: formData.get("resolution") === "2048x1152" ? "16:9" : "9:16",
         
-        // Platzhalter für n8n Flows & Assets
         scene_version: 1,
         scene_prompt_final: "",
         scene_image_http: "",
@@ -98,7 +91,6 @@ export function CreateJobModal() {
         audio_file_http: "",
         video_url_with_sound_http: "",
 
-        // Angepasster flowStatus für 7 Schritte
         flowStatus: {
           flow1_scene: "waiting",
           flow2_startframe: "waiting",
@@ -112,16 +104,21 @@ export function CreateJobModal() {
 
       await setDoc(doc(db, "jobs", customId), jobData);
 
-      // Trigger für den ersten Workflow (Scene Generation)
-      await fetch("https://myc3.app.n8n.cloud/webhook-test/generate-scene", {
+      // PROXY TRIGGER: Nutzt die interne API statt direkten n8n-Aufruf
+      // Wir nutzen hier /webhook/ für Production oder /webhook-test/ falls du noch entwickelst
+      await fetch("/api/trigger-n8n", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: customId }),
+        body: JSON.stringify({ 
+          jobId: customId,
+          webhookUrl: "https://myc3.app.n8n.cloud/webhook-test/generate-scene" 
+        }),
       });
 
       setOpen(false);
     } catch (error) {
-      console.error("Fehler:", error);
+      console.error("Fehler beim Erstellen des Jobs:", error);
+      alert("Fehler beim Webhook-Trigger. Bitte prüfe die Konsole.");
     } finally {
       setLoading(false);
       setUploadProgress(0);
@@ -131,111 +128,111 @@ export function CreateJobModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-blue-600 hover:bg-blue-700 shadow-md">+ Neuer Job</Button>
+        <Button className="bg-blue-600 hover:bg-blue-700 shadow-md transition-all uppercase font-black italic tracking-widest text-[10px] h-10 px-6">+ Create Node</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[95vh] overflow-y-auto bg-black text-white border-zinc-800">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Neuen Video-Job anlegen</DialogTitle>
+          <DialogTitle className="text-3xl font-black italic tracking-tighter uppercase text-blue-500">Initialize Production Node</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-          <div className="grid grid-cols-2 gap-4 border-b pb-4">
+          <div className="grid grid-cols-2 gap-4 border-b border-zinc-900 pb-6">
             <div className="space-y-2">
-              <Label htmlFor="customId" className="font-semibold">Eindeutige Job-ID</Label>
-              <Input id="customId" name="customId" placeholder="z.B. Tasse-Garten-01" required />
+              <Label htmlFor="customId" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Job ID (Unique)</Label>
+              <Input id="customId" name="customId" className="bg-zinc-900 border-zinc-800 focus:border-blue-500 transition-all text-white font-mono" placeholder="SW-XXXXX" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="product_shop_title" className="font-semibold">Shop Titel</Label>
-              <Input id="product_shop_title" name="product_shop_title" placeholder="z.B. Becher Einhorn" required />
+              <Label htmlFor="product_shop_title" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Product Hero Title</Label>
+              <Input id="product_shop_title" name="product_shop_title" className="bg-zinc-900 border-zinc-800 text-white" placeholder="e.g. Magic Mug" required />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="product_shop_description" className="font-semibold">Shop Beschreibung (KI Kontext)</Label>
+            <Label htmlFor="product_shop_description" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">AI Context Description</Label>
             <Textarea 
               id="product_shop_description" 
               name="product_shop_description" 
-              placeholder="Kopiere hier den Text von der Homepage hinein..." 
-              className="min-h-[100px]"
+              className="min-h-[100px] bg-zinc-900 border-zinc-800 text-white text-xs leading-relaxed"
+              placeholder="Paste shop text for AI training..." 
               required 
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="product_shop_url" className="font-semibold">Shop URL</Label>
-              <Input id="product_shop_url" name="product_shop_url" type="url" placeholder="https://www.sheepworld.de/..." required />
+              <Label htmlFor="product_shop_url" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Reference URL</Label>
+              <Input id="product_shop_url" name="product_shop_url" type="url" className="bg-zinc-900 border-zinc-800 text-white text-xs" placeholder="https://..." required />
             </div>
             <div className="space-y-2">
-              <Label className="font-semibold">Auflösung / Format</Label>
+              <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Format</Label>
               <Select name="resolution" required defaultValue="2048x1152">
-                <SelectTrigger><SelectValue placeholder="Wählen..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2048x1152">2048x1152 (Landscape 16:9)</SelectItem>
-                  <SelectItem value="1152x2048">1152x2048 (Portrait 9:16)</SelectItem>
+                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue placeholder="Format..." /></SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="2048x1152">Landscape (16:9)</SelectItem>
+                  <SelectItem value="1152x2048">Portrait (9:16)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 border-t pt-4">
+          <div className="grid grid-cols-3 gap-4 border-t border-zinc-900 pt-6">
              <div className="space-y-2">
-              <Label className="font-semibold">Umgebung</Label>
+              <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Environment</Label>
               <Select name="environment" required>
-                <SelectTrigger><SelectValue placeholder="Wählen..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="kitchen">Küche</SelectItem>
-                  <SelectItem value="living_room">Wohnzimmer</SelectItem>
-                  <SelectItem value="garden">Garten</SelectItem>
+                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="kitchen">Kitchen</SelectItem>
+                  <SelectItem value="living_room">Living Room</SelectItem>
+                  <SelectItem value="garden">Garden</SelectItem>
                   <SelectItem value="pool_side">Pool</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="font-semibold">Stimmung</Label>
+              <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Mood</Label>
               <Select name="mood" required>
-                <SelectTrigger><SelectValue placeholder="Wählen..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cozy">Gemütlich</SelectItem>
-                  <SelectItem value="bright_airy">Hell</SelectItem>
+                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="cozy">Cozy</SelectItem>
+                  <SelectItem value="bright_airy">Bright</SelectItem>
                   <SelectItem value="cinematic">Cinematic</SelectItem>
                 </SelectContent>
               </Select>
             </div>
              <div className="space-y-2">
-              <Label htmlFor="productImage" className="font-semibold">Produktbild</Label>
-              <Input id="productImage" name="productImage" type="file" accept="image/*" required />
+              <Label htmlFor="productImage" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Base Image</Label>
+              <Input id="productImage" name="productImage" type="file" accept="image/*" className="bg-zinc-900 border-zinc-800 text-white text-[10px] file:text-blue-500 file:bg-transparent file:border-none" required />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="width" className="font-semibold">Produkt-Breite (cm)</Label>
-              <Input id="width" name="width" type="number" placeholder="8" required />
+              <Label htmlFor="width" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Width (cm)</Label>
+              <Input id="width" name="width" type="number" className="bg-zinc-900 border-zinc-800 text-white" placeholder="8" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="height" className="font-semibold">Produkt-Höhe (cm)</Label>
-              <Input id="height" name="height" type="number" placeholder="12" required />
+              <Label htmlFor="height" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Height (cm)</Label>
+              <Input id="height" name="height" type="number" className="bg-zinc-900 border-zinc-800 text-white" placeholder="12" required />
             </div>
           </div>
 
           {loading && (
-            <div className="space-y-2 pt-2 border-t">
-              <div className="flex justify-between text-sm font-bold text-blue-600">
-                <span>{uploadProgress < 100 ? "Bild wird übertragen..." : "Job wird gestartet..."}</span>
+            <div className="space-y-2 pt-2 border-t border-zinc-900">
+              <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-blue-400">
+                <span>{uploadProgress < 100 ? "Syncing Assets..." : "Triggering Pipeline..."}</span>
                 <span>{Math.round(uploadProgress)}%</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-3">
+              <div className="w-full bg-zinc-900 rounded-full h-1">
                 <div 
-                  className="bg-blue-600 h-3 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(37,99,235,0.5)]"
+                  className="bg-blue-600 h-1 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(37,99,235,0.8)]"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
             </div>
           )}
 
-          <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={loading}>
-            {loading ? "Bitte warten..." : "Job jetzt absenden"}
+          <Button type="submit" className="w-full h-12 text-sm font-black uppercase italic tracking-[0.2em] bg-blue-600 hover:bg-white hover:text-black transition-all rounded-xl" disabled={loading}>
+            {loading ? "Initializing..." : "Engage Pipeline"}
           </Button>
         </form>
       </DialogContent>
