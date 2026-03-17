@@ -30,6 +30,7 @@ export function CreateJobModal() {
     const formData = new FormData(e.currentTarget);
     const customId = formData.get("customId") as string;
     const productImageFile = formData.get("productImage") as File;
+    const withMascot = formData.get("with_mascot") as string; // 'yes' oder 'no'
     
     try {
       let productGCS = "";
@@ -79,6 +80,9 @@ export function CreateJobModal() {
         voiceover_style: formData.get("mood"), 
         character: "sheep mascot",
         
+        // NEUES FELD
+        with_mascot: withMascot,
+        
         resolution: formData.get("resolution"),
         aspect_ratio: formData.get("resolution") === "2048x1152" ? "16:9" : "9:16",
         
@@ -103,8 +107,7 @@ export function CreateJobModal() {
 
       await setDoc(doc(db, "jobs", customId), jobData);
 
-      // DIREKTER TRIGGER: Da Static Export genutzt wird, rufen wir n8n direkt auf.
-      // CORS muss in n8n konfiguriert sein.
+      // DIREKTER TRIGGER
       await fetch("https://myc3.app.n8n.cloud/webhook/generate-scene", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,7 +117,7 @@ export function CreateJobModal() {
       setOpen(false);
     } catch (error) {
       console.error("Fehler beim Erstellen des Jobs:", error);
-      alert("Fehler beim Starten der Pipeline. Details in der Konsole.");
+      alert("Fehler beim Starten der Pipeline.");
     } finally {
       setLoading(false);
       setUploadProgress(0);
@@ -171,8 +174,19 @@ export function CreateJobModal() {
             </div>
           </div>
 
+          {/* NEUE SEKTION: MASCOT & ENVIRONMENT */}
           <div className="grid grid-cols-3 gap-4 border-t border-zinc-900 pt-6">
-             <div className="space-y-2">
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-black text-blue-500 tracking-widest">Use Mascot?</Label>
+              <Select name="with_mascot" required defaultValue="yes">
+                <SelectTrigger className="bg-zinc-900 border-blue-900/50 text-white font-bold"><SelectValue placeholder="Mascot?" /></SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectItem value="yes">YES (Wide-Angle)</SelectItem>
+                  <SelectItem value="no">NO (Close-Up)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Environment</Label>
               <Select name="environment" required>
                 <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue placeholder="Select..." /></SelectTrigger>
@@ -195,25 +209,25 @@ export function CreateJobModal() {
                 </SelectContent>
               </Select>
             </div>
-             <div className="space-y-2">
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 border-b border-zinc-900 pb-6">
+            <div className="space-y-2 col-span-1">
               <Label htmlFor="productImage" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Base Image</Label>
               <Input id="productImage" name="productImage" type="file" accept="image/*" className="bg-zinc-900 border-zinc-800 text-white text-[10px] file:text-blue-500 file:bg-transparent file:border-none" required />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="width" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Width (cm)</Label>
-              <Input id="width" name="width" type="number" className="bg-zinc-900 border-zinc-800 text-white" placeholder="8" required />
+              <Input id="width" name="width" type="number" className="bg-zinc-900 border-zinc-800 text-white font-mono h-10" placeholder="8" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="height" className="text-[10px] uppercase font-black text-zinc-500 tracking-widest">Height (cm)</Label>
-              <Input id="height" name="height" type="number" className="bg-zinc-900 border-zinc-800 text-white" placeholder="12" required />
+              <Input id="height" name="height" type="number" className="bg-zinc-900 border-zinc-800 text-white font-mono h-10" placeholder="12" required />
             </div>
           </div>
 
           {loading && (
-            <div className="space-y-2 pt-2 border-t border-zinc-900">
+            <div className="space-y-2 pt-2">
               <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-blue-400">
                 <span>{uploadProgress < 100 ? "Syncing Assets..." : "Triggering Pipeline..."}</span>
                 <span>{Math.round(uploadProgress)}%</span>
@@ -227,7 +241,7 @@ export function CreateJobModal() {
             </div>
           )}
 
-          <Button type="submit" className="w-full h-12 text-sm font-black uppercase italic tracking-[0.2em] bg-blue-600 hover:bg-white hover:text-black transition-all rounded-xl" disabled={loading}>
+          <Button type="submit" className="w-full h-12 text-sm font-black uppercase italic tracking-[0.2em] bg-blue-600 hover:bg-white hover:text-black transition-all rounded-xl shadow-xl" disabled={loading}>
             {loading ? "Initializing..." : "Engage Pipeline"}
           </Button>
         </form>
